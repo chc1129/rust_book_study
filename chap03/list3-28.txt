@@ -1,0 +1,33 @@
+$ rustc ./list3-28.rs
+warning: variable `a` is assigned to, but never used
+ --> ./list3-28.rs:2:9
+  |
+2 |     let a = 20;     // immutable
+  |         ^
+  |
+  = note: consider using `_a` instead
+  = note: `#[warn(unused_variables)]` on by default
+
+warning: value assigned to `a` is never read
+ --> ./list3-28.rs:3:5
+  |
+3 |     a = 10;         // エラー。値を変更できない
+  |     ^
+  |
+  = help: maybe it is overwritten before being read?
+  = note: `#[warn(unused_assignments)]` on by default
+
+error[E0384]: cannot assign twice to immutable variable `a`
+ --> ./list3-28.rs:3:5
+  |
+2 |     let a = 20;     // immutable
+  |         -
+  |         |
+  |         first assignment to `a`
+  |         help: consider making this binding mutable: `mut a`
+3 |     a = 10;         // エラー。値を変更できない
+  |     ^^^^^^ cannot assign twice to immutable variable
+
+error: aborting due to previous error; 2 warnings emitted
+
+For more information about this error, try `rustc --explain E0384`.
