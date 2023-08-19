@@ -1,0 +1,11 @@
+[workspace2]
+
+members = [
+    "common",
+    "server",
+    "clien"
+]
+
+exclude = [
+    "hello"
+]

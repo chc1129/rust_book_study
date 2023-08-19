@@ -1,0 +1,11 @@
+[package]
+name = "basic"
+version = "0.1.0"
+edition = "2021"
+
+# This is a comment
+
+[dependencies]
+rand = "0.8.0"
+futures = "0.3.24"
+tokio = { version = "0.2.21", features = ["macros"] }
