@@ -12,7 +12,7 @@ impl Dictionary {
         let words: HashSet<&str> = WORDS.split("\r\n").collect();
         Self { words }
     }
-    pub fn get_random_word(&slef) -> String {
+    pub fn get_random_word(&self) -> String {
         Vec::from_iter(self.words.iter())
             .choose(&mut rand::thread_rng())
             .unwrap()

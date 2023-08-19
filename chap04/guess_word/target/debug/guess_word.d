@@ -1,0 +1,1 @@
+/home/chicu/work/prg/rust/rust_book_study/chap04/guess_word/target/debug/guess_word: /home/chicu/work/prg/rust/rust_book_study/chap04/guess_word/src/lib.rs /home/chicu/work/prg/rust/rust_book_study/chap04/guess_word/src/main.rs /home/chicu/work/prg/rust/rust_book_study/chap04/guess_word/src/words.txt
