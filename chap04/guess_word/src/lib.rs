@@ -19,3 +19,25 @@ impl Dictionary {
             .to_string()
     }
 }
+
+
+pub struct Game {
+    answer: String,
+    dictionary: Dictionary,
+}
+
+impl Default for Game {
+    fn default() -> Self {
+        let dict = Dictionary::new();
+        Game {
+            answer: dict.get_random_word(),
+            dictionary: dict,
+        }
+    }
+}
+
+impl Game {
+    pub fn get_answer(&self) -> String {
+        self.answer.to_string()
+    }
+}
