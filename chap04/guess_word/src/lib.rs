@@ -23,17 +23,22 @@ impl Dictionary {
 pub const GUESS_LENGTH: usize = 5; // 単語の文字列
 pub const GUESS_MAX: usize = 6;    // 推理の試行最大数
 
-#[derive(Copy. Clone, Debug, PartialEq, Eq, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub enum HitAccuracy {
     InRightPlace, // 位置が正しい
     InWord,       // 単語に含まれている
     NotInWord,    // 単語に含まれていない
 }
 
-#[derive(Copy. Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct GuessLetter {
     pub letter: char,
     pub accuracy: HitAccuracy,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct WordGuess {
+    pub letters: Vec<GuessLetter>,
 }
 
 impl WordGuess {
@@ -51,11 +56,25 @@ pub enum GuessResult {
     IncorrectLength, // 文字数が不正
     NotInDictionary, // 単語辞書にない
     Valid,           // 有効
+    GameOver,        // すでにゲームが終了している
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum GameStatus {
+    Won,            // 勝利(推理が当たった)
+    InProgress,     // 推理仲
+    Lost,           // 敗北(推理がすべて当たらなかった)
+}
+
+#[derive(Debug, Clone)]
+pub enum GameError {
+    GameNotLostError,
 }
 
 pub struct Game {
     guesses: Vec<WordGuess>,
     answer: String,
+    game_status: GameStatus,
     dictionary: Dictionary,
 }
 
@@ -63,28 +82,9 @@ impl Default for Game {
     fn default() -> Self {
         let dict = Dictionary::new();
         Game {
-            guesses: Vec:with_capacity(GUESS_MAX),
+            guesses: Vec::with_capacity(GUESS_MAX),
             answer: dict.get_random_word(),
-            dictionary: dict,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct WordGuess {
-    pub letters: Vec<GuessLetter>,
-}
-
-pub struct Game {
-    answer: String,
-    dictionary: Dictionary,
-}
-
-impl Default for Game {
-    fn default() -> Self {
-        let dict = Dictionary::new();
-        Game {
-            answer: dict.get_random_word(),
+            game_status: GameStatus::InProgress,
             dictionary: dict,
         }
     }
@@ -93,13 +93,24 @@ impl Default for Game {
 impl Game {
     pub fn in_dictionary(&self, word: &str) -> bool {
         self.dictionary.words.get(word).is_some()
-    }    pub fn get_answer(&self) -> String {
-        self.answer.to_string()
+    }
+    pub fn game_status(&self) -> GameStatus {
+        self.game_status
+    }
+    pub fn get_answer(&self) -> Result<String, GameError> {
+        if self.game_status == GameStatus::Lost {
+            Ok(self.answer.to_string())
+        } else {
+            Err(GameError::GameNotLostError)
+        }
+    }
+    pub fn guesses(&self) -> &[WordGuess] {
+        self.guesses.as_slice()
     }
     fn build_letter_counts(&self, word: &str) -> HashMap<char, usize> {
-        let mut count = HashMap::new();
+        let mut counts = HashMap::new();
         for c in word.chars() {
-            match counts.get?mut(&c) {
+            match counts.get_mut(&c) {
                 Some(v) => *v += 1,
                 None => {
                     counts.insert(c, 1);
@@ -153,7 +164,7 @@ impl Game {
         for (idx, c) in guess_input.chars().enumerate() {
             if self.matches_answer_at_index(idx, c) {
                 guess_letters[idx] =
-                    Some(self.build_guess_letter_with_accuracu(
+                    Some(self.build_guess_letter_with_accuracy(
                         idx, c, &mut available_letters))
             }
         }
@@ -169,9 +180,42 @@ impl Game {
         WordGuess {
             letters: guess_letters.iter().map(|o| o.unwrap()).collect(),
         }
-        pub fn guess(&mut self, guess_input: &str) {
-            let guess = self.build_guess(guess_input);
-            self.guess.push(guess);
-        }
     }
+    fn guess_already_exists(&self, guess_input: &str) -> bool {
+        self.guesses
+            .iter()
+            .map(|g| g.word())
+            .any(|x| x.eq(guess_input))
+    }
+    pub fn guess(&mut self, guess_input: &str) -> (GameStatus, GuessResult) {
+        if self.game_status == GameStatus::Won ||
+           self.game_status == GameStatus::Lost {
+            return (self.game_status, GuessResult::GameOver);
+        }
+        // 長さチェック
+        if guess_input.len() != GUESS_LENGTH {
+            return (self.game_status, GuessResult::IncorrectLength);
+        }
+        // 重複チェック
+        if self.guess_already_exists(guess_input) {
+            return (self.game_status, GuessResult::DuplicateGuess);
+        }
+        // 辞書チェック
+        if !self.in_dictionary(guess_input) {
+            return (self.game_status, GuessResult::NotInDictionary);
+        }
+
+        let guess = self.build_guess(guess_input);
+        self.guesses.push(guess);
+
+        if guess_input == self.answer {
+            self.game_status = GameStatus::Won;
+            return (self.game_status, GuessResult::Valid);
+        }
+        if self.guesses.len() == GUESS_MAX {
+            self.game_status = GameStatus::Lost;
+        }
+
+        (self.game_status, GuessResult::Valid)
+   }
 }
