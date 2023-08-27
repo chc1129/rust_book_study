@@ -298,7 +298,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lost_gate() {
+    fn test_lost_game() {
         let mut game = Game::default();
         game.answer = "slump".to_string();
         game.guess("admit");
