@@ -1,9 +1,18 @@
+#![allow(dead_code)]
+
+mod rayt;
 use std::{fs::File, io::prelude::*};
 
 struct Color([f64; 3]);
 
 const IMAGE_WIDTH: u32 = 200;
 const IMAGE_HEIGHT: u32 = 100;
+
+fn color(ray: Ray) -> Color {
+    let d = ray.direction.normalize();
+    let t = 0.5 * (d.y() + 1.0);
+    Color::new(0.5, 0.7, 1.0).lerp(Color::one(), t)
+}
 
 fn save_ppm(filename: String, pixels: &[Color]) -> std::io::Result<()> {
     let mut file = File::create(filename)?;
