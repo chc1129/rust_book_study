@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use rand::seq::SliceRandom;
 use std::collections::{HashMap, HashSet};
 
