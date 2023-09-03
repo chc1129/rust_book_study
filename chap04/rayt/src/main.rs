@@ -137,5 +137,5 @@ impl Scene for SimpleScene {
 }
 
 fn main() {
-    render(SimpleScene {});
+    render(SimpleScene::new());
 }
