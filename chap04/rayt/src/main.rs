@@ -209,14 +209,36 @@ impl Scene for SimpleScene {
         )
     }
 
-    fn trace(&self, ray: Ray) -> Color {
+    fn trace(&self, ray: Ray, depth: usize) -> Color {
         let hit_info = self.world.hit(&ray, 0.001, f64::MAX);
         if let Some(hit) = hit_info {
-            let scatter_info = hit.m.scatter(&ray, &hit);
-            if let Some(scatter) = scatter_info {
-                return scatter.albedo * self.trace(scatter.ray);
+            let emitted = hit.m.emitted(&ray, &hit);
+            let scatter_info = if depth > 0 {
+                hit.m.scatter(&ray, &hit)
             } else {
-                return Color::zero();
+                None
+            };
+            if let Some(scatter) = scatter_info {
+                if let Some(pdf) = scatter.pdf {
+                    let shape_pdf = Arc::new(ShapePdf::new(
+                        Arc::clone(&self.light), hit.p));
+                    let pdf = MixturePdf::new(shape_pdf, Arc::clone(&pdf));
+                    let new_ray = Ray::new(hit.p, pdf.generate(&hit));
+                    let spdf_value = pdf.value(&hit, new_ray.direction);
+                    if spdf_value > 0.0 {
+                        let pdf_value = hit.m.scattering_pdf(&new_ray, &hit);
+                        let albedo = scatter.albedo * pdf_value;
+                        let color = self.trace(new_ray, depth - 1);
+                        emitted + albedo * color / spdf_value
+                    } else {
+                        emitted
+                    }
+                } else {
+                    let color = self.trace(scatter.ray, depth - 1);
+                    emitted + scatter.albedo * color
+                }
+            } else {
+                emitted
             }
         } else {
             self.background(ray.direction)
