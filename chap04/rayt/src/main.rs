@@ -14,30 +14,61 @@ const IMAGE_HEIGHT: u32 = 100;
 const OUTPUT_FILENAME: &str = "render.png";
 const BACKUP_FILENAME: &str = "render_bak.png";
 
+// material
+
+trait Material: Sync + Send {
+    fn scatter(&self, ray: &Ray, hit: &HitInfo) -> Option<ScatterInfo>;
+}
+
+struct Lambertian {
+    albedo: Color,
+}
+
+impl Lambertian {
+    fn new(albedo: Color) -> Self {
+        Self { albedo }
+    }
+}
+
+impl Material for Lambertian {
+    fn scatter(&self, _ray: &Ray, hit: &HitInfo) -> Option<ScatterInfo> {
+        let target = hit.p + hit.n + Vec3::random_in_unit_sphere();
+        Some(ScatterInfo::new(Ray::new(hit.p, target - hit.p), self.albedo))
+    }
+}
+
+// HitInfo
+
 struct HitInfo {
     t: f64,
     p: Point3,
     n: Vec3,
+    m: Arc<dyn Material>,
 }
 
 impl HitInfo {
-    const fn new(t: f64, p: Point3, n: Vec3) -> Self {
-        Self { t, p, n }
+    fn new(t: f64, p: Point3, n: Vec3, m: Arc<dyn Material>) -> Self {
+        Self { t, p, n, m }
     }
 }
+
+// Shape
 
 trait Shape: Sync {
     fn hit(&self, ray: &Ray, t0: f64, t1: f64) -> Option<HitInfo>;
 }
 
+// Sphere
+
 struct Sphere {
     center: Point3,
     radius: f64,
+    material: Arc<dyn Material>,
 }
 
 impl Sphere {
-    const fn new(center: Point3, radius: f64) -> Self {
-        Self { center, radius }
+    const fn new(center: Point3, radius: f64, material: Arc<dyn Material>) -> Self {
+        Self { center, radius, material }
     }
 }
 
@@ -55,18 +86,24 @@ impl Shape for Sphere {
                 let p = ray.at(temp);
                 return Some(HitInfo::new(
                     temp, p, (p - self.center) / self.radius));
+                    Arc::clone(&self.material),
+                ));
             }
             let temp = (-b + root) / (2.0 * a);
             if t0 < temp && temp < t1 {
                 let p = ray.at(temp);
                 return Some(HitInfo::new(
                     temp, p, (p - self.center) / self.radius));
+                    Arc::clone(&self.material),
+                ));
             }
         }
 
         None
     }
 }
+
+// ShapeList
 
 struct ShapeList {
     pub objects: Vec<Box<dyn Shape>>,
@@ -96,6 +133,8 @@ impl Shape for ShapeList {
         hit_info
     }
 }
+
+// Scene
 
 struct SimpleScene {
     world: ShapeList,
