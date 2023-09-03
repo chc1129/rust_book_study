@@ -2,7 +2,7 @@ mod camera;
 mod float3;
 mod quat;
 mod ray;
-mod rander;
+mod render;
 mod window;
 
 pub use self::camera::Camera;

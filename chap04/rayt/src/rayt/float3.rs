@@ -154,6 +154,17 @@ impl Float3 {
     pub fn r(&self) -> u8 { (255.99 * self.0[0].min(1.0).max(0.0)) as u8 }
     pub fn g(&self) -> u8 { (255.99 * self.0[1].min(1.0).max(0.0)) as u8 }
     pub fn b(&self) -> u8 { (255.99 * self.0[2].min(1.0).max(0.0)) as u8 }
+
+    /// Convert linear space to gamma space
+    pub fn gamma(&self, factor: f64) -> Self {
+        let recip = factor.recip();
+        Self::from_iter(self.0.iter().map(|x| x.powf(recip)))
+    }
+
+    /// Convert gamma space to linear space
+    pub fn degamma(&self, factor: f64) -> Self {
+        Self::from_iter(self.0.iter().map(|x| x.powf(factor)))
+    }
 }
 
 /// implements random utilities
