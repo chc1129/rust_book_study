@@ -43,11 +43,6 @@ impl Quat {
         Quat::new(0.0, 0.0, 0.0, 0.0)
     }
 
-    /// Construct a zero quaternion
-    pub const fn zero() -> Self {
-        Quat::new(0.0, 0.0, 0.0, 0.0)
-    }
-
     /// Compute the conjugate of a quaternion
     pub fn conj(&self) -> Self {
         Quat(-self.0, self.1)

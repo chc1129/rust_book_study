@@ -1,45 +1,73 @@
 #![allow(dead_code)]
 
 mod rayt;
-use std::{fs::File, io::prelude::*};
+use crate::rayt::*;
+use image::{Rgb, RgbImage};
+use rayon::prelude::*;
+use std::{fs::File, path::Path};
 
 struct Color([f64; 3]);
 
 const IMAGE_WIDTH: u32 = 200;
 const IMAGE_HEIGHT: u32 = 100;
+const OUTPUT_FILENAME: &str = "render.png";
+const BACKUP_FILENAME: &str = "render_bak.png";
 
-fn color(ray: Ray) -> Color {
-    let d = ray.direction.normalize();
-    let t = 0.5 * (d.y() + 1.0);
-    Color::new(0.5, 0.7, 1.0).lerp(Color::one(), t)
+fn backup() {
+    let output_path = Path::new(OUTPUT_FILENAME);
+    if output_path.exists() {
+        println!("backup {:?} -> {:?}", OUTPUT_FILENAME, BACKUP_FILENAME);
+        // replacing the original file if to already exists
+        fs::rename(OUTPUT_FILENAME, BACKUP_FILENAME).unwrap();
+    }
 }
 
-fn save_ppm(filename: String, pixels: &[Color]) -> std::io::Result<()> {
-    let mut file = File::create(filename)?;
-    writeln!(file, "P3")?;
-    writeln!(file, "{} {}", IMAGE_WIDTH, IMAGE_HEIGHT)?;
-    writeln!(file, "255")?;
-    for Color([r, g, b]) in pixels {
-        let to255 = |x| (x * 255.99) as u8;
-        writeln!(file, "{} {} {}", to255(r), to255(g), to255(b))?;
+fn hit_sphere(center: Point3, radius: f64, ray: &Ray) -> bool {
+    let oc = ray.origin - center;
+    let a = ray.direction.dot(ray.direction);
+    let b = 2.0 * ray.direction.dot(oc);
+    let c = oc.dot(oc) - radius.powi(2);
+    let d = b * b - 4.0 * a * c;
+    if d < 0.0 {
+        -1.0
+    } else {
+        return (-b - d.sqrt()) / (2.0 * a);
     }
-    file.flush()?;
-    Ok(())
+}
+
+fn color(ray: Ray) -> Color {
+    let c = Point3::new(0.0, 0.0, -1.0);
+    let t = hit_sphere(c, 0.5, &ray);
+    if t > 0.0 {
+        let n = (ray.at(t) - c).normalize();
+        return 0.5 * (n + Vec3::one());
+    }
+    let d = ray.direction.normalize();
+    let t = 0.5 * (d.y() + 1.0);
+    Color::one().lerp(Color::new(0.5, 0.7. 1.0), t)
 }
 
 fn main() {
-    let mut pixels: Vec<Color> = Vec::with_capacity(
-        IMAGE_WIDTH as usize * IMAGE_HEIGHT as usize);
-    for j in 0..IMAGE_HEIGHT {
-        let par_iter = (0..IMAGE_WIDTH).into_iter().map(|i| {
-            Color([
-                i as f64 / IMAGE_WIDTH as f64,
-                j as f64 / IMAGE_HEIGHT as f64,
-                0.5,
-            ])
+    backup();
+
+    let camera = Camera::new(
+        Vec3::new(4.0, 0.0, 0.0),
+        Vec3::new(0.0, 2.0, 0.0),
+        Vec3::new(-2.0, -1.0, -1.0),
+    );
+    let mut img = RgbImage::new(IMAGE_WIDTH, IMAGE_HEIGHT);
+    img.enumerate_pixels_mut()
+        .collect::<Vec<(u32, u32, &mut Rgb<u8>)>>()
+        .par_iter_mut()
+        .for_each(|(x, y, pixel)| {
+            let u = *x as f64 / (IMAGE_WIDTH - 1) as f64;
+            let v = (IMAGE_HEIGHT - *y - 1) as f64 / (IMAGE_HEIGHT - 1) as f64;
+            let ray = camera.ray(u, v);
+            let rgb = color(ray).to_rgb();
+            pixel[0] = rgb[0];
+            pixel[1] = rgb[1];
+            pixel[2] = rgb[2];
         });
-        let mut line_pixels: Vec<_> = par_iter.collect();
-        pixels.append(&mut line_pixels);
-    }
-    save_ppm(String::from("render.ppm"), &pixels).unwrap();
+    img.save(String::from("render.png")).unwrap();
+    draw_in_window(BACKUP_FILENAME, img).unwrap();
 }

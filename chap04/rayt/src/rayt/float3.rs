@@ -194,7 +194,7 @@ impl std::ops::AddAssign<Float3> for Float3 {
 impl std::ops::Add<Float3> for Float3 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
-        Self::from_iter(self.0.iter().zip(rhs.0.iter()).map(|(l, r))
+        Self::from_iter(self.0.iter().zip(rhs.0.iter()).map(|(l, r)| l + r))
     }
 }
 
