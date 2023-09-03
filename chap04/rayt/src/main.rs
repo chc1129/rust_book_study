@@ -14,6 +14,19 @@ const IMAGE_HEIGHT: u32 = 100;
 const OUTPUT_FILENAME: &str = "render.png";
 const BACKUP_FILENAME: &str = "render_bak.png";
 
+// ScatterInfo
+
+struct ScatterInfo {
+    ray: Ray,
+    albedo: Color,
+}
+
+impl ScatterInfo {
+    fn new(ray: Ray, albedo: Color) -> Self {
+        Self { ray, albedo }
+    }
+}
+
 // material
 
 trait Material: Sync + Send {
@@ -34,6 +47,29 @@ impl Material for Lambertian {
     fn scatter(&self, _ray: &Ray, hit: &HitInfo) -> Option<ScatterInfo> {
         let target = hit.p + hit.n + Vec3::random_in_unit_sphere();
         Some(ScatterInfo::new(Ray::new(hit.p, target - hit.p), self.albedo))
+    }
+}
+
+struct Metal {
+    albedo: Color,
+    fuzz: f64,
+}
+
+impl Metal {
+    fn new(albedo: Color, fuzz: f64) -> Self {
+        Self { albedo, fuzz }
+    }
+}
+
+impl Material for Metal {
+    fn scatter(&self, ray: &Ray, hit: &HitInfo) -> Option<ScatterInfo> {
+        let mut reflected = ray.direction.normalize().reflect(hit.n);
+        reflected = reflected + self.fuzz * Vec3::random_in_unit_sphere();
+        if reflected.dot(hit.n) > 0.0 {
+            Some(ScatterInfo::new(Ray::new(hit.p, reflected), self.albedo))
+        } else {
+            None
+        }
     }
 }
 
@@ -144,9 +180,17 @@ impl SimpleScene {
     fn new() -> Self {
         let mut world = ShapeList::new();
         world.push(Box::new(Sphere::new(
-            Point3::new(0.0, 0.0, -1.0), 0.5)));
+            Point3::new(0.6, 0.0, -1.0), 0.5,
+            Arc::new(Lambertian::new(Color::new(0.1, 0.2, 0.5))),
+        )));
         world.push(Box::new(Sphere::new(
-            Point3::new(0.0, -100.5, -1.0), 100.0)));
+            Point3::new(-0.6, 0.0, -1.0), 0.5,
+            Arc::new(Metal::new(Color::new(0.8, 0.8, 0.8))),
+        )));
+        world.push(Box::new(Sphere::new(
+            Point3::new(0.0, -100.5, -1.0), 100.0,
+            Arc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0))),
+        )));
         Self { world }
     }
 
@@ -166,10 +210,14 @@ impl Scene for SimpleScene {
     }
 
     fn trace(&self, ray: Ray) -> Color {
-        let hit_info = self.world.hit(&ray, 0.0, f64::MAX);
+        let hit_info = self.world.hit(&ray, 0.001, f64::MAX);
         if let Some(hit) = hit_info {
-            let target = hit.p + hit.n + Vec3::random_in_unit_sphere();
-            0.5 * (hit.n + Vec3::one())
+            let scatter_info = hit.m.scatter(&ray, &hit);
+            if let Some(scatter) = scatter_info {
+                return scatter.albedo * self.trace(scatter.ray);
+            } else {
+                return Color::zero();
+            }
         } else {
             self.background(ray.direction)
         }

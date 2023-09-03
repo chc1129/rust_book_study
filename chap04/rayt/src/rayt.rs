@@ -13,5 +13,6 @@ pub use self::render::*;
 pub use self::window::*;
 pub use std::f64::consts::FRAC_1_PI;
 pub use std::f64::consts::PI;
+pub use std::sync::Arc;
 pub const PI2: f64 = PI*2.0;
 pub const EPS: f64 = 1e-6;
