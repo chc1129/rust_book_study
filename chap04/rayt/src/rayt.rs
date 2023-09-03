@@ -2,12 +2,14 @@ mod camera;
 mod float3;
 mod quat;
 mod ray;
+mod rander;
 mod window;
 
 pub use self::camera::Camera;
 pub use self::float3::{Color, Float3, Point3, Vec3};
 pub use self::quat::Quat;
 pub use self::ray::Ray;
+pub use self::render::*;
 pub use self::window::*;
 pub use std::f64::consts::FRAC_1_PI;
 pub use std::f64::consts::PI;
