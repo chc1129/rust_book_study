@@ -89,6 +89,16 @@ impl Quat {
             ((w * z1 + z * w1) - x * y1) + y * x1,
         )
     }
+
+    /// Compute linear interpolation between two quaternions
+    pub fn lerp(&self, _other: Quat, _t: f64) -> Self {
+        todo!()
+    }
+
+    /// Compute spherical linear interpolation between two quaternions
+    pub fn slerp(&self, _other: Quat, _t: f64) -> Self {
+        todo!()
+    }
 }
 
 /// Multiply

@@ -20,17 +20,17 @@ impl Float3 {
         Self([x, y, z])
     }
 
-    /// Construct 3-element array filed with zeros
+    /// Construct 3-element array filled with zeros
     pub const fn zero() -> Self {
         Self([0.0; 3])
     }
 
-    /// Construct 3-element array filed with ones
+    /// Construct 3-element array filled with ones
     pub const fn one() -> Self {
         Self([1.0; 3])
     }
 
-    /// Construct 3-element array filed with value
+    /// Construct 3-element array filled with value
     pub const fn full(value: f64) -> Self {
         Self([value; 3])
     }
@@ -60,7 +60,7 @@ impl Float3 {
         self.0.iter()
     }
 
-    /// Return iterator of 3-element array
+    /// Returns iterator of 3-element array
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, f64> {
         self.0.iter_mut()
     }
@@ -85,7 +85,7 @@ impl Float3 {
         self.0.iter().zip(rhs.0.iter()).fold(0.0, |acc, (l,r)| acc + l*r)
     }
 
-    /// Compute the cross prodouct of two vectors
+    /// Compute the cross product of two vectors
     pub fn cross(&self, rhs: Self) -> Self {
         Self([
             self.0[1] * rhs.0[2] - self.0[2] * rhs.0[1],
@@ -104,7 +104,7 @@ impl Float3 {
         self.0.iter().fold(0.0, |acc, x| acc + x * x)
     }
 
-    /// Return normalized this vector
+    /// Returns normalized this vector
     pub fn normalize(&self) -> Self {
         *self / self.length()
     }
@@ -138,11 +138,10 @@ impl Float3 {
     /// Returns a x-axis vector
     pub const fn xaxis() -> Self { Self::new(1.0, 0.0, 0.0) }
     /// Returns a y-axis vector
-    pub const fn yaxis() -> Self { Self::new(1.0, 0.0, 0.0) }
+    pub const fn yaxis() -> Self { Self::new(0.0, 1.0, 0.0) }
     /// Returns a z-axis vector
-    pub const fn zaxis() -> Self { Self::new(1.0, 0.0, 0.0) }
+    pub const fn zaxis() -> Self { Self::new(0.0, 0.0, 1.0) }
 }
-
 
 /// implements color utilities
 impl Float3 {
@@ -197,9 +196,65 @@ impl Float3 {
         Self::full(random::<f64>())
     }
 
-    /// Construct 3-element array with a generated random values. [min,max)
+    /// Construct 3-element array with a generated random values [min,max)
     pub fn random_limit(min: f64, max: f64) -> Self {
         Self::from_iter(Self::random().0.iter().map(|x| min + x * (max - min)))
+    }
+
+    /// Construct a random point in a unit sphere
+    pub fn random_in_unit_sphere() -> Self {
+        loop {
+            let point = Self::random_limit(-1.0, 1.0);
+            if point.length_squared() < 1.0 {
+                return point;
+            }
+        }
+    }
+
+    /// Construct a random vector
+    pub fn random_unit_vector() -> Self {
+        Self::random_in_unit_sphere().normalize()
+    }
+
+    /// Construct a random point in a hemisphere
+    pub fn random_in_hemisphere(normal: Self) -> Self {
+        let in_unit_sphere = Self::random_in_unit_sphere();
+        if in_unit_sphere.dot(normal) > 0.0 {
+            in_unit_sphere
+        } else {
+            -in_unit_sphere
+        }
+    }
+
+    /// Construct a random point in a unit disk
+    pub fn random_in_unit_disk() -> Self {
+        loop {
+            let mut p = Self::random_limit(-1.0, 1.0);
+            p.0[2] = 0.0;
+            if p.length_squared() < 1.0 {
+                return p;
+            }
+        }
+    }
+
+    /// Construct a random direction
+    pub fn random_cosine_direction() -> Self {
+        let Self([r1, r2, _]) = Self::random();
+        let z = (1.0 - r2).sqrt();
+        let (x, y) = (PI2 * r1).sin_cos();
+        let r2sqrt = r2.sqrt();
+        Self::new(x * r2sqrt, y * r2sqrt, z)
+    }
+
+    /// Construct a random vector to sphere
+    pub fn random_to_sphere(radius: f64, distance_squared: f64) -> Self {
+        let Self([rx, ry, _]) = Self::random();
+        let rr = radius.powi(2).min(distance_squared);
+        let cos_theta_max = (1.0 - rr * distance_squared.recip()).sqrt();
+        let z = 1.0 - ry * (1.0 - cos_theta_max);
+        let sqrtz = (1.0 - z.powi(2)).sqrt();
+        let (x, y) = (PI2 * rx).sin_cos();
+        Self::new(x * sqrtz, y * sqrtz, z)
     }
 }
 
@@ -284,5 +339,53 @@ impl std::ops::Div<f64> for Float3 {
     type Output = Self;
     fn div(self, rhs: f64) -> Self {
         Float3::from_iter(self.0.iter().map(|x| x / rhs))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_random() {
+        for _ in 0..10 {
+            println!("{:?}", Float3::random());
+        }
+    }
+
+    #[test]
+    fn test_vector() {
+        assert_eq!(Float3([0.0, 0.0, 0.0]), Float3::zero());
+        assert_eq!(Float3([1.0, 1.0, 1.0]), Float3::one());
+        assert_eq!(Float3([5.0, 5.0, 5.0]), Float3::full(5.0));
+        assert_eq!(Float3([0.0, 1.0, 0.42]), Float3::new(-1.2, 3.4, 0.42).saturate());
+        assert_eq!(Float3([1.0, 2.0, -3.0]), Float3::from_iter([1.0,2.0,-3.0]));
+        for _ in 0..100 {
+            let rnd = Float3::random_full();
+            assert_eq!(rnd.x(), rnd.y());
+            assert_eq!(rnd.x(), rnd.z());
+            let Float3([x1, y1, z1]) = Float3::random();
+            let Float3([x2, y2, z2]) = Float3::random();
+            let v1 = Float3::new(x1, y1, z1);
+            let v2 = Float3::new(x2, y2, z2);
+            assert_eq!(Float3([-x1, -y1, -z1]), -v1);
+            assert_eq!(x1 * x1 + y1 * y1 + z1 * z1, v1.length_squared());
+            assert_eq!(x1 * x2 + y1 * y2 + z1 * z2, v1.dot(v2));
+            assert_eq!(x1 * x2 + y1 * y2 + z1 * z2, v2.dot(v1));
+            assert_eq!(Float3([x1.sqrt(), y1.sqrt(), z1.sqrt()]), v1.sqrt());
+            assert_eq!(Float3([x1 + x2, y1 + y2, z1 + z2]), v1 + v2);
+            assert_eq!(Float3([x1 - x2, y1 - y2, z1 - z2]), v1 - v2);
+            assert_eq!(Float3([x1 * x2, y1 * y2, z1 * z2]), v1 * v2);
+            assert_eq!(Float3([x1 * x2, y1 * x2, z1 * x2]), v1 * x2);
+            assert_eq!(Float3([x1 * x2, y1 * x2, z1 * x2]), x2 * v1);
+            assert_eq!(Float3([x1 / x2, y1 / x2, z1 / x2]), v1 / x2);
+        }
+    }
+
+    #[test]
+    fn test_color() {
+        assert_eq!(Float3::new(1.0, 1.0, 0.0), Float3::from_hex(b"ffff00"));
+        assert_eq!(Float3::new(0.0, 128.0 / 255.0, 1.0), Float3::from_hex(b"0080ff"));
+        assert_eq!(Float3::new(0.0, 1.0, 1.0), Float3::from_rgb(0, 255, 255));
+        assert_eq!(Float3::new(12.0 / 255.0, 96.0 / 255.0, 183.0 / 255.0), Float3::from_rgb(12, 96, 183));
     }
 }
